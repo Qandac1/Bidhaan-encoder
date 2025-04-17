@@ -6,7 +6,7 @@ class Config:
     # API Configuration
     API_ID = int(os.environ.get("API_ID", 26385571))
     API_HASH = os.environ.get("API_HASH", "aac7a3c3c2f36e72201a6a5a21eb802a")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7932656660:AAFqwho7Al8_TcB3ff6nJkJxvEtmXfZLHZ0")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7747196334:AAE6fjbVnVmDpjMcPSFWayIFK3uyNIRBTPM")
     FORCE_SUB = os.environ.get("FORCE_SUB", "BIDHAANBOTS")
     AUTH_CHANNEL = int(FORCE_SUB) if FORCE_SUB and re.match(r'^.\d+$', FORCE_SUB) else None
 
