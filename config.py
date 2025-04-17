@@ -1,5 +1,6 @@
 import os
 import re
+from pymongo import MongoClient
 
 class Config:
     # API Configuration
@@ -15,23 +16,29 @@ class Config:
     ADMIN = int(os.environ.get("ADMIN", 6169808990))
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", -1002586992832))
 
-    # Starting image and caption
+    # Starting image and caption template
     START_PIC = os.environ.get("START_PIC", "https://graph.org/file/15e82d7e665eccc8bd9c5.jpg")
     caption = """
-    **File Name**: {0}
-    **Original File Size:** {1}
-    **Encoded File Size:** {2}
-    **Compression Percentage:** {3}
-    __Downloaded in {4}__
-    __Encoded in {5}__
-    __Uploaded in {6}__
+    **File Name:** {0}
+    **Original Size:** {1}
+    **Encoded Size:** {2}
+    **Compression:** {3}
+    
+    __Downloaded in:__ {4}  
+    __Encoded in:__ {5}  
+    __Uploaded in:__ {6}  
     """
 
-    # Webhook and port
+    # Webhook & Port
     WEBHOOK = os.environ.get("WEBHOOK", "True").lower() in ("true", "1", "yes")
     PORT = int(os.environ.get("PORT", 8080))
 
-    # Watermark Positions
+    # FFmpeg and Watermarking
+    FFMPEG_PATH = os.environ.get("FFMPEG_PATH", "/usr/bin/ffmpeg")
+    default_resolution = "original"  # "1080p", "720p", "480p", "original"
+    watermark_enabled = True
+
+    # Watermark Position Map
     WATERMARK_POSITIONS = {
         "↖": "(0):(0)", "↑": "(main_w-overlay_w)/2:(0)", "↗": "(main_w-overlay_w):(0)",
         "←": "(0):(main_h-overlay_h)/2", "⚪": "(main_w-overlay_w)/2:(main_h-overlay_h)/2",
@@ -39,67 +46,56 @@ class Config:
         "↓": "(main_w-overlay_w)/2:(main_h-overlay_h)", "↘": "(main_w-overlay_w):(main_h-overlay_h)"
     }
 
-    # FFMpeg options
-    FFMPEG_PATH = os.environ.get("FFMPEG_PATH", "/usr/bin/ffmpeg")
-
-    # Default options for watermarking and renaming
-    default_resolution = "original"  # Options: "1080p", "720p", "480p", "original"
-    watermark_enabled = True  # Toggle watermark on/off
-
-    # Helper function to check if user is admin
     @staticmethod
     def is_admin(user_id):
         return user_id == Config.ADMIN
 
-    # Watermark Filter Generator for FFmpeg
+    @staticmethod
+    def default_watermark_command(message):
+        return "↖"
+
     @staticmethod
     def build_watermark_filter(user_id, positions):
-        interval = 60  # Customize interval as required
+        interval = 60
         overlay_filters = []
 
         for i, pos in enumerate(positions):
             start = i * interval
             end = (i + 1) * interval
-            overlay_filters.append(
-                f"enable='between(t,{start},{end})':x={Config.WATERMARK_POSITIONS[pos].split(':')[0]}:y={Config.WATERMARK_POSITIONS[pos].split(':')[1]}"
-            )
-        filter_complex = "[1:v]scale=iw/6:-1[logo];[0:v][logo]overlay=" + ":".join(overlay_filters)
-        return f'-filter_complex "{filter_complex}"'
+            x, y = Config.WATERMARK_POSITIONS[pos].split(':')
+            overlay_filters.append(f"enable='between(t,{start},{end})':x={x}:y={y}")
 
-    # FFmpeg command generator
+        filters = "[1:v]scale=iw/6:-1[logo];[0:v][logo]overlay=" + ":".join(overlay_filters)
+        return f'-filter_complex "{filters}"'
+
     @staticmethod
     def build_ffmpeg_cmd(input_file, output_file, logo_path, resolution, wm_filter):
-        if not all(os.path.exists(f) for f in [input_file, logo_path]):
+        if not os.path.exists(input_file) or not os.path.exists(logo_path):
             return None
 
         scale_filter = ""
         if resolution != "original":
-            res_map = {"1080p": "1920:1080", "720p": "1280:720", "480p": "854:480"}
-            scale_filter = f",scale={res_map.get(resolution, '1920:1080')}"
-        
-        cmd = f"ffmpeg -i {input_file} -i {logo_path} {scale_filter} {wm_filter} -c:v libx264 -preset fast -crf 23 -c:a copy {output_file}"
-        return cmd
+            resolutions = {"1080p": "1920:1080", "720p": "1280:720", "480p": "854:480"}
+            scale_filter = f"-vf scale={resolutions.get(resolution, '1920:1080')}"
 
-    # Helper function for renaming videos
+        return f"{Config.FFMPEG_PATH} -i '{input_file}' -i '{logo_path}' {wm_filter} -preset fast -crf 23 -c:a copy '{output_file}'"
+
     @staticmethod
     def rename_video(file_path, new_name):
         if not os.path.exists(file_path):
             return None
-        new_file_path = os.path.join(os.path.dirname(file_path), new_name + os.path.splitext(file_path)[1])
-        os.rename(file_path, new_file_path)
-        return new_file_path
+        new_file = os.path.join(os.path.dirname(file_path), new_name + os.path.splitext(file_path)[1])
+        os.rename(file_path, new_file)
+        return new_file
 
-    # MongoDB settings for user preferences
     @staticmethod
     def get_user_settings(user_id):
-        # Here you can retrieve user-specific settings from the database
-        # Example:
-        # db = MongoClient(Config.DB_URL)[Config.DB_NAME]
-        # user_settings_col = db["user_settings"]
-        # settings = user_settings_col.find_one({"user_id": user_id})
         return {}
 
-    # Default Watermark Command
     @staticmethod
-    def default_watermark_command(message):
-        return "↖"  # Default position, can be customized per user
+    def get_user_logo(user_id):
+        client = MongoClient(Config.DB_URL)
+        db = client[Config.DB_NAME]
+        collection = db["user_watermarks"]
+        data = collection.find_one({"user_id": user_id})
+        return data["logo_path"] if data and "logo_path" in data else None
