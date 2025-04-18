@@ -1,10 +1,8 @@
-from pyrogram import (
-    Client,
-    version
-)
+from pyrogram import Client
 from pyrogram.raw.all import layer
 from config import Config
 import logging
+import pyrogram
 from datetime import datetime
 import logging.config, os
 from pytz import timezone
@@ -17,11 +15,9 @@ logging.getLogger().setLevel(logging.INFO)
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
 
 
-
-class Bot (Client):
-
-    def init(self):
-        super().init(
+class Bot(Client):
+    def __init__(self):
+        super().__init__(
             name="SnowEncoderBot",
             in_memory=True,
             api_id=Config.API_ID,
@@ -39,8 +35,7 @@ class Bot (Client):
         await app.setup()
         bind_address = "0.0.0.0"
         await web.TCPSite(app, bind_address, Config.PORT).start()
-        logging.info(f"✅ {me.first_name} with for Pyrogram v{version} (Layer {layer}) started on {me.username}. ✅")
-
+        logging.info(f"✅ {me.first_name} with Pyrogram v{pyrogram.__version__} (Layer {layer}) started on @{me.username}. ✅")
 
         await self.send_message(Config.ADMIN, f"{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
 
@@ -49,9 +44,15 @@ class Bot (Client):
                 curr = datetime.now(timezone("Asia/Kolkata"))
                 date = curr.strftime('%d %B, %Y')
                 time = curr.strftime('%I:%M:%S %p')
-                await self.send_message(Config.LOG_CHANNEL, f"__{me.mention} Iꜱ Rᴇsᴛᴀʀᴛᴇᴅ !!\n\n📅 Dᴀᴛᴇ : {date}\n⏰ Tɪᴍᴇ : {time}\n🌐 Tɪᴍᴇᴢᴏɴᴇ : Asia/Kolkata\n\n🉐 Vᴇʀsɪᴏɴ : v{__version__} (Layer {layer})</b>")
+                await self.send_message(
+                    Config.LOG_CHANNEL,
+                    f"__{me.mention} Iꜱ Rᴇsᴛᴀʀᴛᴇᴅ !!\n\n"
+                    f"📅 Dᴀᴛᴇ : {date}\n⏰ Tɪᴍᴇ : {time}\n"
+                    f"🌐 Tɪᴍᴇᴢᴏɴᴇ : Asia/Kolkata\n\n"
+                    f"🉐 Vᴇʀsɪᴏɴ : v{pyrogram.__version__} (Layer {layer})__"
+                )
             except:
-                print("Pʟᴇᴀꜱᴇ Mᴀᴋᴇ Tʜɪꜱ Iꜱ Aᴅᴍɪɴ Iɴ Yᴏᴜʀ Lᴏɢ Cʜᴀɴɴᴇʟ")
+                print("Pʟᴇᴀꜱᴇ Mᴀᴋᴇ Tʜɪꜱ Bᴏᴛ Aᴅᴍɪɴ Iɴ Yᴏᴜʀ Lᴏɢ Cʜᴀɴɴᴇʟ")
 
     async def stop(self, *args):
         await super().stop()
