@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-@Client.on_message(filters.command(["stats", "status"]) & filters.user(Config.ADMIN))
+@Client.on_message(filters.command(["stats", "status"]) & filters.user(Config.ADMINS))
 async def get_stats(bot, message):
     total_users = await db.total_users_count()
     uptime = time.strftime("%Hh%Mm%Ss", time.gmtime(
@@ -28,14 +28,14 @@ async def get_stats(bot, message):
     await st.edit(text=f"**--Bᴏᴛ Sᴛᴀᴛᴜꜱ--** \n\n**⌚️ Bᴏᴛ Uᴩᴛɪᴍᴇ:** {uptime} \n**🐌 Cᴜʀʀᴇɴᴛ Pɪɴɢ:** `{time_taken_s:.3f} ᴍꜱ` \n**👭 Tᴏᴛᴀʟ Uꜱᴇʀꜱ:** `{total_users}`")
 
 
-# Restart to cancell all process
-@Client.on_message(filters.private & filters.command("restart") & filters.user(Config.ADMIN))
+# Restart to cancel all processes
+@Client.on_message(filters.private & filters.command("restart") & filters.user(Config.ADMINS))
 async def restart_bot(b, m):
     await m.reply_text("🔄__Rᴇꜱᴛᴀʀᴛɪɴɢ.....__")
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 
-@Client.on_message(filters.command("broadcast") & filters.user(Config.ADMIN) & filters.reply)
+@Client.on_message(filters.command("broadcast") & filters.user(Config.ADMINS) & filters.reply)
 async def broadcast_handler(bot: Client, m: Message):
     await bot.send_message(Config.LOG_CHANNEL, f"{m.from_user.mention} or {m.from_user.id} Iꜱ ꜱᴛᴀʀᴛᴇᴅ ᴛʜᴇ Bʀᴏᴀᴅᴄᴀꜱᴛ......")
     all_users = await db.get_all_users()
@@ -58,7 +58,7 @@ async def broadcast_handler(bot: Client, m: Message):
         if not done % 20:
             await sts_msg.edit(f"Bʀᴏᴀᴅᴄᴀꜱᴛ Iɴ Pʀᴏɢʀᴇꜱꜱ: \nTᴏᴛᴀʟ Uꜱᴇʀꜱ {total_users} \nCᴏᴍᴩʟᴇᴛᴇᴅ: {done} / {total_users}\nSᴜᴄᴄᴇꜱꜱ: {success}\nFᴀɪʟᴇᴅ: {failed}")
     completed_in = datetime.timedelta(seconds=int(time.time() - start_time))
-    await sts_msg.edit(f"Bʀᴏᴀᴅᴄᴀꜱᴛ Cᴏᴍᴩʟᴇᴛᴇᴅ: \nCᴏᴍᴩʟᴇᴛᴇᴅ Iɴ `{completed_in}`.\n\nTᴏᴛᴀʟ Uꜱᴇʀꜱ {total_users}\nCᴏᴍᴩʟᴇᴛᴇᴅ: {done} / {total_users}\nSᴜᴄᴄᴇꜱꜱ: {success}\nFᴀɪʟᴇᴅ: {failed}")
+    await sts_msg.edit(f"Bʀᴏᴀᴅᴄᴀꜱᴛ Cᴏᴍᴩʟᴇᴛᴇᴅ: \nCᴏᴍᴩʟᴇᴛᴇᴅ Iɴ `{completed_in}`.\n\nTᴏᴛᴀʟ Uꜱᴇʀꜱ {total_users}\nCᴏᴍᴩʜᴇᴛᴇᴅ: {done} / {total_users}\nSᴜᴄᴄᴇꜱꜱ: {success}\nFᴀɪʟᴇᴅ: {failed}")
 
 
 async def send_msg(user_id, message):
@@ -82,7 +82,7 @@ async def send_msg(user_id, message):
         return 500
 
 
-@Client.on_message(filters.private & filters.command("ban_user") & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command("ban_user") & filters.user(Config.ADMINS))
 async def ban(c: Client, m: Message):
 
     if len(m.command) == 1:
@@ -126,7 +126,7 @@ async def ban(c: Client, m: Message):
         )
 
 
-@Client.on_message(filters.private & filters.command("unban_user") & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command("unban_user") & filters.user(Config.ADMINS))
 async def unban(c: Client, m: Message):
 
     if len(m.command) == 1:
@@ -165,7 +165,7 @@ async def unban(c: Client, m: Message):
         )
 
 
-@Client.on_message(filters.private & filters.command("banned_users") & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command("banned_users") & filters.user(Config.ADMINS))
 async def _banned_users(_, m: Message):
 
     all_banned_users = await db.get_all_banned_users()
