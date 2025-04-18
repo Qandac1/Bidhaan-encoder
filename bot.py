@@ -10,10 +10,10 @@ from aiohttp import web
 from plugins.web_support import web_server
 import pyromod
 
+# Logging Configuration
 logging.config.fileConfig('logging.conf')
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
-
 
 class Bot(Client):
     def __init__(self):
@@ -31,14 +31,23 @@ class Bot(Client):
         me = await self.get_me()
         self.mention = me.mention
         self.username = me.username
+
+        # Start the web server for webhook if needed
         app = web.AppRunner(await web_server())
         await app.setup()
         bind_address = "0.0.0.0"
         await web.TCPSite(app, bind_address, Config.PORT).start()
+
         logging.info(f"✅ {me.first_name} with Pyrogram v{pyrogram.__version__} (Layer {layer}) started on @{me.username}. ✅")
 
-        await self.send_message(Config.ADMIN, f"{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
+        # Notify all admins
+        for admin in Config.ADMINS:
+            try:
+                await self.send_message(admin, f"{me.first_name}  Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
+            except Exception as e:
+                logging.warning(f"Failed to send start message to admin {admin}: {e}")
 
+        # Log to channel if enabled
         if Config.LOG_CHANNEL:
             try:
                 curr = datetime.now(timezone("Asia/Kolkata"))
@@ -46,18 +55,17 @@ class Bot(Client):
                 time = curr.strftime('%I:%M:%S %p')
                 await self.send_message(
                     Config.LOG_CHANNEL,
-                    f"__{me.mention} Iꜱ Rᴇsᴛᴀʀᴛᴇᴅ !!\n\n"
+                    f"__{me.mention} Iꜱ Rᴇsᴛᴀʀᴛᴇᴅ !!__\n\n"
                     f"📅 Dᴀᴛᴇ : {date}\n⏰ Tɪᴍᴇ : {time}\n"
                     f"🌐 Tɪᴍᴇᴢᴏɴᴇ : Asia/Kolkata\n\n"
-                    f"🉐 Vᴇʀsɪᴏɴ : v{pyrogram.__version__} (Layer {layer})__"
+                    f"🉐 Vᴇʀsɪᴏɴ : v{pyrogram.__version__} (Layer {layer})"
                 )
-            except:
-                print("Pʟᴇᴀꜱᴇ Mᴀᴋᴇ Tʜɪꜱ Bᴏᴛ Aᴅᴍɪɴ Iɴ Yᴏᴜʀ Lᴏɢ Cʜᴀɴɴᴇʟ")
+            except Exception as e:
+                logging.warning("⚠️ Failed to log restart message. Is the bot admin in LOG_CHANNEL?")
 
     async def stop(self, *args):
         await super().stop()
         logging.info("Bot Stopped ⛔")
-
 
 bot = Bot()
 bot.run()
