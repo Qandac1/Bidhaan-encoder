@@ -18,7 +18,7 @@ class Config:
 
     # Admins
     ADMINS = list(map(int, os.environ.get("ADMINS", "6169808990").split()))
-    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", -1002586992832))
+    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL",-1002537610513"))
 
     # Start image and caption template
     START_PIC = os.environ.get("START_PIC", "https://graph.org/file/15e82d7e665eccc8bd9c5.jpg")
