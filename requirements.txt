@@ -1,6 +1,6 @@
-Corrected Requirements with Advanced Functionality
-
-Add these for advanced functionality
-
-pyrogram==2.0.106   # MTProto API (broadcasts/force join) hachoir==3.2.0      # Metadata parsing pyromod==2.0.0      # Pyrogram utilities aiohttp==3.8.4     # Async HTTP client
-
+echo "python-telegram-bot==20.3
+pymongo[srv]==4.3.3
+ffmpeg-python==0.2.0
+motor==3.1.1
+pillow==10.0.0
+python-dotenv==1.0.0" > requirements.txt
