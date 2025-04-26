@@ -1,21 +1,12 @@
-FROM python:3.10.6-slim
-
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y \
-    ffmpeg \
-    mediainfo \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set up working directory
+FROM python:3.10.6
+RUN mkdir /bot && chmod 777 /bot
 WORKDIR /bot
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt -qq update && \
+    apt -qq install -y git wget pv jq python3-dev ffmpeg mediainfo neofetch && \
+    apt-get install wget -y -f && \
+    apt-get install fontconfig -y -f
+
 COPY . .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Create run script
-RUN echo '#!/bin/bash\npython3 bot.py' > run.sh && \
-    chmod +x run.sh
-
-CMD ["./run.sh"]
+RUN pip3 install -r requirements.txt
+CMD ["bash", "run.sh"]
