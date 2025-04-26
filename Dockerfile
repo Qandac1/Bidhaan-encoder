@@ -1,21 +1,21 @@
-FROM python:3.10.6
+FROM python:3.10.6-slim
 
-# System setup
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y \
-    git \
-    wget \
     ffmpeg \
     mediainfo \
-    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
-# Application setup
+# Set up working directory
 WORKDIR /bot
 COPY . .
-RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Permissions and cleanup
-RUN chmod +x run.sh
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["bash", "run.sh"]
+# Create run script
+RUN echo '#!/bin/bash\npython3 bot.py' > run.sh && \
+    chmod +x run.sh
+
+CMD ["./run.sh"]
