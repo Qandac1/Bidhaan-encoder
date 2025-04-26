@@ -1,14 +1,6 @@
-python-telegram-bot==20.3
-pyrogram==2.0.106
-TgCrypto==1.2.3
-python-dotenv==0.21.1
-hachoir==3.2.0
-ffmpeg-python==0.2.0
-aiohttp==3.8.4
-motor==3.1.1
-pytz==2023.3
-pyromod==2.0.0
-psutil==5.9.5
-Pillow==9.5.0
-humanize==4.6.0
-pymongo[srv]==4.3.3
+Corrected Requirements with Advanced Functionality
+
+Add these for advanced functionality
+
+pyrogram==2.0.106   # MTProto API (broadcasts/force join) hachoir==3.2.0      # Metadata parsing pyromod==2.0.0      # Pyrogram utilities aiohttp==3.8.4     # Async HTTP client
+
