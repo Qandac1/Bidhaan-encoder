@@ -10,3 +10,4 @@ pyromod
 psutil
 Pillow
 humanize
+echo "python-telegram-bot==20.3" >> requirements.txt
