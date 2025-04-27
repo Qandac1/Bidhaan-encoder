@@ -1,146 +1,142 @@
+# bot.py
+
 import os
-import re
-import logging
-import subprocess
-from pymongo import MongoClient
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Updater,
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    Filters,
-    CallbackContext,
+import time
+import asyncio
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import Config
+
+app = Client(
+    "EncodeMarkRenameBot",
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+    bot_token=Config.BOT_TOKEN
 )
 
-# ================= CONFIGURATION =================
-class Config:
-    # Telegram Credentials
-    API_ID = int(os.environ.get("API_ID", 26385571))
-    API_HASH = os.environ.get("API_HASH", "aac7a3c3c2f36e72201a6a5a21eb802a")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7747196334:AAE6fjbVnVmDpjMcPSFWayIFK3uyNIRBTPM")
+DOWNLOADS = "downloads/"
+os.makedirs(DOWNLOADS, exist_ok=True)
 
-    # MongoDB Configuration
-    DB_URL = os.environ.get("DB_URL", "mongodb+srv://BIGFIISH:iFyAm2DZqEzo76VW@cluster0.z6bhz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
-    DB_NAME = os.environ.get("DB_NAME", "EncodeMarkRenameBot")
 
-    # Watermark Settings
-    WATERMARK_POSITIONS = {
-        "↖": "0:0",
-        "↑": "(main_w-overlay_w)/2:0",
-        "↗": "main_w-overlay_w:0",
-        "←": "0:(main_h-overlay_h)/2",
-        "⚪": "(main_w-overlay_w)/2:(main_h-overlay_h)/2",
-        "→": "main_w-overlay_w:(main_h-overlay_h)/2",
-        "↙": "0:main_h-overlay_h",
-        "↓": "(main_w-overlay_w)/2:main_h-overlay_h",
-        "↘": "main_w-overlay_w:main_h-overlay_h"
-    }
-    WATERMARK_MODES = ["position", "fill", "random", "corners"]
-    SPEED_VALUES = [5, 15, 30, 50, 100]
+@app.on_message(filters.command("start"))
+async def start(client, message):
+    if Config.AUTH_CHANNEL:
+        try:
+            user = await client.get_chat_member(Config.AUTH_CHANNEL, message.from_user.id)
+            if user.status not in ("member", "administrator", "creator"):
+                raise Exception("Not a member")
+        except Exception:
+            invite_link = f"https://t.me/{Config.FORCE_SUB}"
+            await message.reply_text(
+                f"**Please join the channel first** to use this bot!",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("Join Channel", url=invite_link)]]
+                )
+            )
+            return
 
-    # Encoding Presets
-    RESOLUTIONS = {
-        '480p': '854:480',
-        '720p': '1280:720', 
-        '1080p': '1920:1080',
-        '4k': '3840:2160',
-        'original': None
-    }
-
-    @staticmethod
-    def get_db():
-        client = MongoClient(Config.DB_URL)
-        return client[Config.DB_NAME]
-
-# ================= WATERMARK ENGINE =================
-class WatermarkHandler:
-    @staticmethod
-    def generate_filter(user_id: int):
-        db = Config.get_db()
-        user = db.users.find_one({"user_id": user_id}) or {}
-        
-        mode = user.get("wm_mode", "position")
-        speed = user.get("speed", 30)
-        positions = user.get("positions", ["↖", "↑", "↗", "←", "⚪", "→", "↙", "↓", "↘"])
-
-        # Calculate interval based on speed (higher speed = slower movement)
-        interval = (100 - speed) * 2
-
-        if mode == "fill":
-            return "-vf tile=5x5:overlap=0.2"
-        
-        elif mode == "random":
-            return "-vf overlay=x='if(eq(mod(n,30),0),random(0)*W,overlay_x)':y='if(eq(mod(n,30),0),random(0)*H,overlay_y)'"
-        
-        elif mode == "corners":
-            corner_positions = ["0:0", "main_w-overlay_w:0", 
-                              "0:main_h-overlay_h", "main_w-overlay_w:main_h-overlay_h"]
-            return f"-filter_complex overlay={':'.join(corner_positions)} -loop 1"
-        
-        else:  # Position mode
-            pos = user.get("position", "↖")
-            return f"-filter_complex overlay={Config.WATERMARK_POSITIONS.get(pos, '0:0')}"
-
-# ================= BOT HANDLERS =================
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "🚀 Welcome to Advanced Encoder Bot!\n"
-        "📌 Features:\n"
-        "- 4GB File Support\n"
-        "- Moving/Static Watermarks\n"
-        "- Multi-mode Encoding\n\n"
-        "Use /encode to start!",
-        reply_markup=main_menu()
+    await message.reply_photo(
+        photo=Config.START_PIC,
+        caption=f"Hi {message.from_user.first_name}!\n\nSend me a video to watermark, compress and rename it!",
     )
 
-def main_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⚙️ Watermark Settings", callback_data="wm_settings"),
-         InlineKeyboardButton("🎥 Encode Video", callback_data="encode_menu")],
-        [InlineKeyboardButton("📢 Broadcast", callback_data="broadcast"),
-         InlineKeyboardButton("❌ Close", callback_data="close")]
-    ])
 
-def handle_video(update: Update, context: CallbackContext):
-    video = update.message.video
-    user_id = update.message.from_user.id
-    
-    if video.file_size > 4 * 1024 * 1024 * 1024:  # 4GB limit
-        update.message.reply_text("❌ File exceeds 4GB limit!")
+@app.on_message(filters.video)
+async def video_handler(client, message):
+    sent = await message.reply_text("Downloading your video...")
+    video = await message.download(file_name=DOWNLOADS)
+
+    await sent.edit("Checking your watermark settings...")
+    user_logo = Config.get_user_logo(message.from_user.id)
+
+    if not user_logo:
+        await sent.edit("You have no custom watermark set. Please set one first.")
         return
 
-    # Download video
-    file = video.get_file()
-    file.download("input.mp4")
-    
-    # Process with watermark
-    output = f"output_{user_id}.mp4"
-    cmd = [
-        "ffmpeg", "-i", "input.mp4",
-        *WatermarkHandler.generate_filter(user_id).split(),
-        "-c:v", "libx264", "-preset", "fast",
-        output
-    ]
-    
+    wm_positions = ["↖", "↘", "↙", "↗"]  # Default positions if user has no settings
+    user_settings = Config.get_user_settings(message.from_user.id)
+    if user_settings and user_settings.get("positions"):
+        wm_positions = user_settings["positions"]
+
+    wm_filter = Config.build_watermark_filter(message.from_user.id, wm_positions)
+    output = os.path.join(DOWNLOADS, f"watermarked_{int(time.time())}.mp4")
+
+    await sent.edit("Encoding your video with watermark...")
+
+    ffmpeg_cmd = Config.build_ffmpeg_cmd(video, output, user_logo, Config.DEFAULT_RESOLUTION, wm_filter)
+    if not ffmpeg_cmd:
+        await sent.edit("Error building ffmpeg command. Try again later.")
+        return
+
+    process = await asyncio.create_subprocess_shell(ffmpeg_cmd)
+    await process.communicate()
+
+    if not os.path.exists(output):
+        await sent.edit("Encoding failed. Something went wrong.")
+        return
+
+    # File size before/after
+    original_size = round(os.path.getsize(video) / (1024 * 1024), 2)
+    encoded_size = round(os.path.getsize(output) / (1024 * 1024), 2)
+    compression = round((encoded_size/original_size)*100, 2)
+
+    await sent.edit("Uploading your watermarked video...")
+
+    start_time = time.time()
+    await message.reply_video(
+        video=output,
+        caption=Config.CAPTION_TEMPLATE.format(
+            os.path.basename(output),
+            f"{original_size} MB",
+            f"{encoded_size} MB",
+            f"{compression}%",
+            "N/A",
+            f"{round(time.time() - start_time)} sec",
+            "N/A"
+        ),
+        supports_streaming=True
+    )
+    await sent.delete()
+
+    # Clean files
     try:
-        subprocess.run(cmd, check=True)
-        update.message.reply_video(video=open(output, "rb"))
+        os.remove(video)
         os.remove(output)
     except Exception as e:
-        logging.error(f"Encoding failed: {str(e)}")
-        update.message.reply_text("❌ Processing failed!")
+        print(f"Error cleaning files: {e}")
 
-# ================= RUN BOT =================
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    
-    updater = Updater(Config.BOT_TOKEN)
-    dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.video, handle_video))
-    dp.add_handler(CallbackQueryHandler(lambda update, ctx: update.callback_query.answer()))
+@app.on_message(filters.command("setlogo") & filters.private)
+async def set_logo(client, message):
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        await message.reply_text("Reply to a logo image with /setlogo to set your watermark.")
+        return
 
-    updater.start_polling()
-    updater.idle()
+    file = await message.reply_to_message.download(file_name=DOWNLOADS)
+    collection = Config.mongo_db["user_watermarks"]
+
+    collection.update_one(
+        {"user_id": message.from_user.id},
+        {"$set": {"logo_path": file}},
+        upsert=True
+    )
+
+    await message.reply_text("Your custom watermark logo has been saved!")
+
+@app.on_message(filters.command("settings") & filters.private)
+async def settings_menu(client, message):
+    await message.reply_text(
+        "Settings feature is under development.\n\nYou can currently set your watermark logo by replying to an image with /setlogo.",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Update Coming Soon", callback_data="none")]]
+        )
+    )
+
+@app.on_message(filters.command("help"))
+async def help_command(client, message):
+    await message.reply_text("Send a video, and I will add your watermark automatically!\n\n"
+                              "/setlogo - Set your custom watermark\n"
+                              "/settings - Settings menu (Coming soon)")
+
+# Run the bot
+app.run()
