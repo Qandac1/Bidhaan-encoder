@@ -3,32 +3,31 @@ import re
 from pymongo import MongoClient
 
 class Config:
-    # Telegram API & Bot Token (Use environment variables in production)
+    # Telegram API & Bot Token
     API_ID = int(os.environ.get("API_ID", 26385571))
     API_HASH = os.environ.get("API_HASH", "aac7a3c3c2f36e72201a6a5a21eb802a")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "7747196334:AAE6fjbVnVmDpjMcPSFWayIFK3uyNIRBTPM")
 
-    # Force Subscription Channel (Improved validation)
+    # Force Subscription Channel
     FORCE_SUB = os.environ.get("FORCE_SUB", "BIDHAANBOTS")
     AUTH_CHANNEL = int(FORCE_SUB) if FORCE_SUB and re.match(r'^-100\d+$', FORCE_SUB) else None
 
-    # MongoDB Configuration (Added connection validation)
+    # MongoDB Configuration
     DB_URL = os.environ.get("DB_URL", "mongodb+srv://BIGFIISH:iFyAm2DZqEzo76VW@cluster0.z6bhz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     DB_NAME = os.environ.get("DB_NAME", "EncodeMarkRenameBot")
     
-    # Initialize MongoDB connection
     try:
         mongo_client = MongoClient(DB_URL)
-        mongo_db = mongo_client[DB_NAME]
+        mongo_db = mongo_client[DB_NAME]    # Fixed: Assign database
     except Exception as e:
         print(f"MongoDB connection error: {e}")
         raise
 
-    # Admins (Added type validation)
+    # Admins and Logs
     ADMINS = list(map(int, os.environ.get("ADMINS", "6169808990").split()))
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", -1002537610513))
 
-    # Start image and caption template (Fixed formatting)
+    # Start Image and Captions
     START_PIC = os.environ.get("START_PIC", "https://graph.org/file/15e82d7e665eccc8bd9c5.jpg")
     CAPTION_TEMPLATE = """\
 File Name: {0}
@@ -40,17 +39,16 @@ Downloaded in: {4}
 Encoded in: {5}
 Uploaded in: {6}"""
 
-    # Webhook configuration
+    # Webhook settings
     WEBHOOK = os.environ.get("WEBHOOK", "True").lower() in ("true", "1", "yes")
     PORT = int(os.environ.get("PORT", 8080))
 
-    # FFmpeg configuration (Added validation)
+    # FFmpeg and Watermark settings
     FFMPEG_PATH = os.environ.get("FFMPEG_PATH", "/usr/bin/ffmpeg")
     DEFAULT_RESOLUTION = "original"  # Options: "1080p", "720p", "480p", "original"
     WATERMARK_ENABLED = True
-    WATERMARK_INTERVAL = int(os.environ.get("WATERMARK_INTERVAL", 60))
+    WATERMARK_INTERVAL = int(os.environ.get("WATERMARK_INTERVAL", 60))  # seconds
 
-    # Watermark Positions Map (Improved position mapping)
     WATERMARK_POSITIONS = {
         "↖": "0:0",
         "↑": "(main_w-overlay_w)/2:0",
